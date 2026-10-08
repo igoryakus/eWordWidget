@@ -12,6 +12,9 @@ struct eWordWidgetApp: App {
     var body: some Scene {
         WindowGroup {
             ContentView()
+                .onOpenURL { _ in }
         }
+        // Нажатие на виджет открывает окно, даже если приложение уже запущено в фоне (после озвучки) без окон.
+        .handlesExternalEvents(matching: ["open"])
     }
 }
