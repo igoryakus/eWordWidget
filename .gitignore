@@ -1,0 +1,28 @@
+# macOS
+.DS_Store
+
+# Xcode
+xcuserdata/
+DerivedData/
+build/
+*.xcscmblueprint
+*.xccheckout
+*.moved-aside
+*.hmap
+*.ipa
+*.dSYM.zip
+*.dSYM
+timeline.xctimeline
+playground.xcworkspace
+.swiftpm/
+.build/
+
+# Секреты и окружение
+.env
+.env.*
+*.p12
+*.mobileprovision
+*.pem
+
+# Локальный мусор
+_to_delete/
