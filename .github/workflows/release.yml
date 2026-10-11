@@ -5,7 +5,7 @@ name: Release macOS
 
 on:
   push:
-    branches: [main, claude/release-action]
+    branches: [main]
   workflow_dispatch:
 
 permissions:
@@ -19,7 +19,7 @@ jobs:
   release:
     runs-on: macos-26
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - name: Выбор Xcode
         run: |
@@ -58,7 +58,6 @@ jobs:
           echo "tag=$TAG" >> "$GITHUB_OUTPUT"
 
       - name: Релиз
-        if: github.ref == 'refs/heads/main'
         env:
           GH_TOKEN: ${{ github.token }}
           TAG: ${{ steps.pack.outputs.tag }}
