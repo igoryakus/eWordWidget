@@ -58,27 +58,36 @@ struct Provider: TimelineProvider {
 
 // MARK: - Views
 
-/// Слово-задание и кнопки в одной строке. Если строка не влезает (маленький виджет) — кнопки под словом.
+/// Слово-задание и кнопки в одной строке.
+/// В маленьком виджете кнопки — круги, и если строка не влезает, они уходят под слово.
 struct TitleRow: View {
     let entry: WordEntry
-    var titleSize: CGFloat = 15
+    var titleSize: CGFloat = 22
     var compact = false
 
     var body: some View {
-        ViewThatFits(in: .horizontal) {
-            HStack(spacing: 6) {
+        if compact {
+            ViewThatFits(in: .horizontal) {
+                HStack(spacing: 6) {
+                    title
+                    Spacer(minLength: 0)
+                    ActionBar(entry: entry, compact: true).fixedSize()
+                }
+                VStack(alignment: .leading, spacing: 4) {
+                    title
+                    // Кнопки прижаты вправо, чтобы 🔊 ниже оказалась ровно под «следующим словом».
+                    HStack {
+                        Spacer(minLength: 0)
+                        ActionBar(entry: entry, compact: true)
+                    }
+                }
+            }
+        } else {
+            // Длинное слово уменьшается, кнопки остаются в строке.
+            HStack(spacing: 8) {
                 title
                 Spacer(minLength: 0)
-                ActionBar(entry: entry, compact: compact)
-                    .fixedSize()
-            }
-            VStack(alignment: .leading, spacing: 4) {
-                title
-                // Кнопки прижаты вправо, чтобы 🔊 ниже оказалась ровно под «следующим словом».
-                HStack {
-                    Spacer(minLength: 0)
-                    ActionBar(entry: entry, compact: compact)
-                }
+                ActionBar(entry: entry).fixedSize()
             }
         }
     }
@@ -90,9 +99,10 @@ struct TitleRow: View {
 
     private var titleText: some View {
         Text(entry.direction == .en ? entry.word.text : entry.word.translation)
-            .font(.system(size: titleSize, weight: .bold, design: .rounded))
+            .font(.system(size: titleSize, weight: .bold))
+            .foregroundStyle(Color.word)
             .lineLimit(1)
-            .minimumScaleFactor(0.6)
+            .minimumScaleFactor(0.5)
             .widgetAccentable()
             // Пока таймлайн перезагружается после нажатия, система приглушает это место.
             .invalidatableContent()
@@ -116,68 +126,85 @@ struct Answer<Content: View>: View {
     }
 }
 
-/// Транскрипция, часть речи и ответ под словом-заданием.
-struct WordDetails: View {
-    let entry: WordEntry
-    var showsPartOfSpeech = false
+/// Транскрипция /ipa/ и часть речи курсивом.
+struct Pronunciation: View {
+    let word: Word
+    var ipaSize: CGFloat = 15
+    var showsPartOfSpeech = true
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 2) {
-            switch entry.direction {
-            case .en:
-                pronunciation
-                Answer(entry: entry) {
-                    Text(entry.word.translation)
-                        .font(.footnote)
-                        .lineLimit(2)
-                }
-            case .ru:
-                Answer(entry: entry) {
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text(entry.word.text)
-                            .font(.footnote.weight(.semibold))
-                            .lineLimit(1)
-                        pronunciation
-                    }
-                }
-            }
-        }
-    }
-
-    private var pronunciation: some View {
         HStack(alignment: .firstTextBaseline, spacing: 6) {
-            Text(entry.word.ipa)
-                .font(.system(.subheadline, design: .serif))
-                .foregroundStyle(.secondary)
+            Text(word.ipa)
+                .font(.system(size: ipaSize, design: .serif))
+                .foregroundStyle(.primary.opacity(0.85))
             if showsPartOfSpeech {
-                Text(entry.word.partOfSpeech)
-                    .font(.caption2)
-                    .foregroundStyle(.tertiary)
+                Text(word.partOfSpeech)
+                    .font(.system(size: ipaSize - 3).italic())
+                    .foregroundStyle(.secondary)
             }
         }
         .lineLimit(1)
     }
 }
 
-/// Кнопки по порядку: EN/RU, уровень, «запомнил» с процентом, следующее. 🔊 — под ними, см. SpeakCluster.
+/// Транскрипция, часть речи и ответ под словом-заданием.
+/// inline — транскрипция и ответ в одной строке (средний виджет, где мало высоты).
+struct WordDetails: View {
+    let entry: WordEntry
+    var ipaSize: CGFloat = 15
+    var answerFont: Font = .body
+    var showsPartOfSpeech = true
+    var inline = false
+
+    var body: some View {
+        if inline {
+            HStack(alignment: .firstTextBaseline, spacing: 8) { content }
+        } else {
+            VStack(alignment: .leading, spacing: 3) { content }
+        }
+    }
+
+    @ViewBuilder private var content: some View {
+        switch entry.direction {
+        case .en:
+            Pronunciation(word: entry.word, ipaSize: ipaSize, showsPartOfSpeech: showsPartOfSpeech)
+                .fixedSize()
+            Answer(entry: entry) {
+                Text(entry.word.translation)
+                    .font(answerFont)
+                    .lineLimit(inline ? 1 : 2)
+            }
+        case .ru:
+            Answer(entry: entry) {
+                HStack(alignment: .firstTextBaseline, spacing: 6) {
+                    Text(entry.word.text)
+                        .font(answerFont.weight(.semibold))
+                        .foregroundStyle(Color.word)
+                    Pronunciation(word: entry.word, ipaSize: ipaSize, showsPartOfSpeech: showsPartOfSpeech)
+                }
+                .lineLimit(1)
+            }
+        }
+    }
+}
+
+/// Кнопки по порядку: EN/RU, уровень, «запомнил» с процентом, следующее. 🔊 — отдельно, см. SpeakCluster.
 struct ActionBar: View {
     let entry: WordEntry
-    /// Компактный вариант для маленького виджета: маленькие круги, процент под галочкой.
+    /// Компактный вариант для маленького виджета: круги, процент под галочкой.
     var compact = false
 
     var body: some View {
-        HStack(spacing: compact ? 4 : 6) {
+        HStack(spacing: compact ? 4 : 5) {
             Button(intent: ToggleDirectionIntent()) {
                 Text(entry.direction.title)
             }
-            .buttonBorderShape(.capsule)
             .invalidatableContent()
             .help("Английское слово / русское слово")
 
             Button(intent: NextLevelIntent()) {
                 Text(entry.level.title)
             }
-            .buttonBorderShape(.capsule)
             .invalidatableContent()
             .help("Сменить уровень")
 
@@ -194,16 +221,15 @@ struct ActionBar: View {
                     }
                 }
             }
-            .buttonBorderShape(.capsule)
             .invalidatableContent()
             .help("Запомнил")
 
             Button(intent: NextWordIntent()) {
-                ButtonIcon(systemName: "arrow.forward")
+                Image(systemName: "arrow.forward")
             }
             .help("Следующее слово")
         }
-        .modifier(ActionBarStyle(compact: compact))
+        .buttonStyle(ChipButtonStyle(compact: compact))
     }
 
     private var percent: some View {
@@ -213,35 +239,22 @@ struct ActionBar: View {
     }
 }
 
-/// Обычные кнопки — системные .bordered; в маленьком виджете — круги фиксированного размера, чтобы всё влезло в строку.
-struct ActionBarStyle: ViewModifier {
-    let compact: Bool
+/// Кнопка-«чип» как в макете: серая капсула со светлым текстом. compact — круг 22 pt для маленького виджета.
+struct ChipButtonStyle: ButtonStyle {
+    var compact = false
 
-    func body(content: Content) -> some View {
-        if compact {
-            content
-                .buttonStyle(CompactCircleButtonStyle())
-                .font(.system(size: 10, weight: .semibold))
-        } else {
-            content
-                .buttonStyle(.bordered)
-                .buttonBorderShape(.circle)
-                .tint(.accentColor)
-                .font(.footnote.weight(.semibold))
-        }
-    }
-}
-
-struct CompactCircleButtonStyle: ButtonStyle {
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
-            .foregroundStyle(Color.accentColor)
-            .frame(width: 22, height: 22)
-            .background(Color.accentColor.opacity(configuration.isPressed ? 0.3 : 0.15), in: Circle())
+            .font(.system(size: compact ? 10 : 11, weight: .semibold))
+            .foregroundStyle(.primary.opacity(0.85))
+            .padding(.horizontal, compact ? 0 : 8)
+            .frame(minWidth: compact ? 22 : 28, minHeight: compact ? 22 : 24)
+            .frame(width: compact ? 22 : nil)
+            .background(.primary.opacity(configuration.isPressed ? 0.18 : 0.09), in: Capsule())
     }
 }
 
-/// Кнопка 🔊 у правого края (под «следующим словом»), слева от неё — откуда звук: «Oxford · UK».
+/// Кнопка 🔊, слева от неё — откуда звук: «Oxford · UK».
 struct SpeakCluster: View {
     let entry: WordEntry
     var compact = false
@@ -257,22 +270,11 @@ struct SpeakCluster: View {
                     .minimumScaleFactor(0.8)
             }
             Button(intent: SpeakWordIntent(word: entry.word.text)) {
-                ButtonIcon(systemName: "speaker.wave.2.fill")
+                Image(systemName: "speaker.wave.2.fill")
             }
             .help("Произнести")
-            .modifier(ActionBarStyle(compact: compact))
+            .buttonStyle(ChipButtonStyle(compact: compact))
         }
-    }
-}
-
-/// Иконка в квадрате фиксированного размера: круглые кнопки «следующее» и 🔊 получаются одинаковыми
-/// и стоят друг под другом по центру, независимо от ширины самого значка.
-struct ButtonIcon: View {
-    let systemName: String
-
-    var body: some View {
-        Image(systemName: systemName)
-            .frame(width: 18, height: 18)
     }
 }
 
@@ -280,31 +282,53 @@ struct SectionTitle: View {
     let text: String
     var body: some View {
         Text(text.uppercased())
-            .font(.caption2.weight(.semibold))
+            .font(.system(size: 10, weight: .semibold))
+            .tracking(0.6)
             .foregroundStyle(.secondary)
     }
 }
 
-/// Идиома: задание (фраза или её значение) и, если ответ открыт, через тире — ответ.
-struct IdiomRow: View {
-    let idiom: Idiom
+/// Строка «задание — ответ»: ответ в той же строке через тире, размыт, пока не открыт; нажатие открывает/скрывает.
+/// Размыть часть Text нельзя, поэтому, пока ответ скрыт, рисуем две копии строки с одинаковой разметкой:
+/// снизу — только ответ (размытый), сверху — только задание; остальное в каждой копии прозрачное.
+struct PromptAnswerRow: View {
     let entry: WordEntry
+    /// Задание; аргумент — видим ли текст (false — прозрачный, только для разметки).
+    let prompt: (Bool) -> Text
+    let answer: (Bool) -> Text
+    var font: Font = .footnote
+    var answerFont: Font = .caption
+    var lineLimit = 4
 
     var body: some View {
-        let (prompt, answer) = entry.direction == .en ? (idiom.phrase, idiom.meaning) : (idiom.meaning, idiom.phrase)
-        Group {
-            if entry.revealed {
-                Text("\(Text(prompt).fontWeight(.semibold)) — \(Text(answer).foregroundStyle(.secondary))")
-            } else {
-                Text(prompt).fontWeight(.semibold)
+        Button(intent: RevealIntent(word: entry.word.text)) {
+            ZStack(alignment: .topLeading) {
+                if entry.revealed {
+                    line(prompt: true, answer: true)
+                } else {
+                    line(prompt: false, answer: true).blur(radius: 4)
+                    line(prompt: true, answer: false)
+                }
             }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .contentShape(Rectangle())
         }
-        .font(.caption)
-        .lineLimit(2)
+        .buttonStyle(.plain)
+        .invalidatableContent()
+    }
+
+    private func line(prompt showsPrompt: Bool, answer showsAnswer: Bool) -> some View {
+        let dash = Text(" — ").font(answerFont).foregroundStyle(showsPrompt ? Color.secondary : Color.clear)
+        let answer = answer(showsAnswer).font(answerFont)
+        return Text("\(prompt(showsPrompt))\(dash)\(answer)")
+            .font(font)
+            .lineLimit(lineLimit)
+            .minimumScaleFactor(0.85)
+            .fixedSize(horizontal: false, vertical: true)
     }
 }
 
-/// Пример: задание (английское или русское предложение) и, если ответ открыт, через тире — перевод.
+/// Пример: задание (английское или русское предложение) — перевод.
 struct ExampleRow: View {
     let example: Example
     let entry: WordEntry
@@ -312,50 +336,57 @@ struct ExampleRow: View {
     var translationFont: Font = .caption
 
     var body: some View {
-        let english = Text(Highlight.sentence(example.text, word: entry.word.text))
-        let russian = Text(example.translation)
-        let (prompt, answer) = entry.direction == .en ? (english, russian) : (russian, english)
-        Group {
-            if entry.revealed {
-                Text("\(prompt) \(Text("— ").font(translationFont).foregroundStyle(.secondary))\(answer.font(translationFont).foregroundStyle(.secondary))")
-            } else {
-                prompt
-            }
+        PromptAnswerRow(entry: entry, prompt: { side($0, prompt: true) }, answer: { side($0, prompt: false) },
+                        font: font, answerFont: translationFont)
+    }
+
+    private func side(_ visible: Bool, prompt: Bool) -> Text {
+        let isEnglish = (entry.direction == .en) == prompt
+        if isEnglish {
+            // Подсветка слова — цветом в атрибутах, поэтому прозрачную копию строим без цвета.
+            let text = Text(Highlight.sentence(example.text, word: entry.word.text, color: visible ? .word : nil))
+            return visible ? text.foregroundStyle(prompt ? Color.primary : Color.secondary) : text.foregroundStyle(.clear)
         }
-        .font(font)
-        .lineLimit(4)
-        .minimumScaleFactor(0.85)
+        return Text(example.translation).foregroundStyle(visible ? (prompt ? Color.primary : Color.secondary) : Color.clear)
     }
 }
 
-/// Примеры и идиомы: показываем столько, сколько влезает. Переводы видны, когда открыт ответ (нажатием на размытое).
+/// Идиома: фраза (цветом слова) — значение; в режиме RU наоборот.
+struct IdiomRow: View {
+    let idiom: Idiom
+    let entry: WordEntry
+    var font: Font = .footnote
+    var translationFont: Font = .caption
+
+    var body: some View {
+        PromptAnswerRow(entry: entry, prompt: { side($0, prompt: true) }, answer: { side($0, prompt: false) },
+                        font: font, answerFont: translationFont, lineLimit: 2)
+    }
+
+    private func side(_ visible: Bool, prompt: Bool) -> Text {
+        let isPhrase = (entry.direction == .en) == prompt
+        if isPhrase {
+            return Text(idiom.phrase).fontWeight(.semibold).foregroundStyle(visible ? Color.word : .clear)
+        }
+        return Text(idiom.meaning).foregroundStyle(visible ? (prompt ? Color.primary : Color.secondary) : Color.clear)
+    }
+}
+
+/// Примеры и идиомы: показываем столько, сколько влезает.
 struct ExamplesAndIdioms: View {
     let entry: WordEntry
     var exampleFont: Font = .footnote
     var translationFont: Font = .caption
     var spacing: CGFloat = 4
-    /// Кнопка 🔊 в строке заголовка «Примеры» (в среднем виджете).
-    var showsSpeak = false
+    var maxExamples = 3
 
     private var word: Word { entry.word }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            HStack {
-                SectionTitle(text: "Примеры")
-                Spacer(minLength: 4)
-                if showsSpeak { SpeakCluster(entry: entry, compact: true) }
-            }
-            content
-        }
-    }
-
-    private var content: some View {
-        VStack(alignment: .leading, spacing: 6) {
+        VStack(alignment: .leading, spacing: 8) {
             ViewThatFits(in: .vertical) {
-                examples(3)
-                examples(2)
-                examples(1)
+                ForEach(Array((1...maxExamples).reversed()), id: \.self) { examples($0) }
+                Color.clear.frame(height: 0)
             }
             if !word.idioms.isEmpty {
                 ViewThatFits(in: .vertical) {
@@ -372,6 +403,7 @@ struct ExamplesAndIdioms: View {
 
     private func examples(_ count: Int) -> some View {
         VStack(alignment: .leading, spacing: spacing) {
+            SectionTitle(text: "Примеры")
             ForEach(word.examples.prefix(count), id: \.self) {
                 ExampleRow(example: $0, entry: entry, font: exampleFont, translationFont: translationFont)
             }
@@ -380,8 +412,38 @@ struct ExamplesAndIdioms: View {
 
     private func idioms(_ count: Int) -> some View {
         VStack(alignment: .leading, spacing: spacing) {
-            SectionTitle(text: "Идиомы").padding(.top, 2)
-            ForEach(word.idioms.prefix(count), id: \.phrase) { IdiomRow(idiom: $0, entry: entry) }
+            SectionTitle(text: "Идиомы")
+            ForEach(word.idioms.prefix(count), id: \.phrase) {
+                IdiomRow(idiom: $0, entry: entry, font: exampleFont, translationFont: translationFont)
+            }
+        }
+    }
+}
+
+/// Подсказка, пока ответ скрыт (место под неё остаётся, чтобы ничего не прыгало).
+struct HintText: View {
+    let entry: WordEntry
+
+    var body: some View {
+        Text(entry.direction == .en ? "Нажмите на размытый перевод" : "Нажмите на размытое слово")
+            .font(.caption2)
+            .foregroundStyle(.secondary)
+            .lineLimit(1)
+            .minimumScaleFactor(0.7)
+            .opacity(entry.revealed ? 0 : 1)
+    }
+}
+
+/// Нижняя строка: подсказка (пока ответ скрыт) и 🔊 у правого края.
+struct BottomRow: View {
+    let entry: WordEntry
+    var compact = false
+
+    var body: some View {
+        HStack(spacing: 6) {
+            HintText(entry: entry)
+            Spacer(minLength: 0)
+            SpeakCluster(entry: entry, compact: compact)
         }
     }
 }
@@ -390,13 +452,14 @@ struct SmallWordView: View {
     let entry: WordEntry
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
-            TitleRow(entry: entry, titleSize: 13, compact: true)
+            TitleRow(entry: entry, titleSize: 17, compact: true)
             HStack {
                 Spacer(minLength: 0)
                 SpeakCluster(entry: entry, compact: true)
             }
-            WordDetails(entry: entry)
+            WordDetails(entry: entry, ipaSize: 13, answerFont: .footnote, showsPartOfSpeech: false)
             Spacer(minLength: 0)
+            HintText(entry: entry)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
     }
@@ -405,32 +468,30 @@ struct SmallWordView: View {
 struct MediumWordView: View {
     let entry: WordEntry
     var body: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            TitleRow(entry: entry, titleSize: 14, compact: true)
-            HStack(alignment: .top, spacing: 14) {
-                WordDetails(entry: entry)
-                    .frame(width: 110, alignment: .leading)
-                ExamplesAndIdioms(entry: entry, showsSpeak: true)
-                    .frame(maxWidth: .infinity, alignment: .topLeading)
+        // Высоты мало: 🔊 в строке транскрипции, без подсказки внизу — так влезает хотя бы один пример.
+        VStack(alignment: .leading, spacing: 5) {
+            TitleRow(entry: entry, titleSize: 22)
+            HStack(alignment: .center, spacing: 6) {
+                WordDetails(entry: entry, ipaSize: 13, answerFont: .subheadline, inline: true)
+                Spacer(minLength: 0)
+                SpeakCluster(entry: entry, compact: true)
             }
-            .frame(maxHeight: .infinity, alignment: .topLeading)
+            ExamplesAndIdioms(entry: entry, spacing: 2, maxExamples: 2)
+                .padding(.top, 2)
         }
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
     }
 }
 
 struct LargeWordView: View {
     let entry: WordEntry
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            TitleRow(entry: entry, titleSize: 17)
-            HStack(alignment: .top) {
-                WordDetails(entry: entry, showsPartOfSpeech: true)
-                Spacer(minLength: 4)
-                SpeakCluster(entry: entry)
-            }
-            Divider()
-            ExamplesAndIdioms(entry: entry, exampleFont: .subheadline, translationFont: .footnote, spacing: 6)
-                .frame(maxHeight: .infinity, alignment: .topLeading)
+        VStack(alignment: .leading, spacing: 6) {
+            TitleRow(entry: entry, titleSize: 30)
+            WordDetails(entry: entry, ipaSize: 16, answerFont: .body)
+            ExamplesAndIdioms(entry: entry, exampleFont: .subheadline, translationFont: .subheadline, spacing: 5)
+                .padding(.top, 6)
+            BottomRow(entry: entry)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
     }
@@ -449,6 +510,28 @@ struct WordWidgetEntryView: View {
     }
 }
 
+/// Фон карточки как в макете на сайте: тёмная (в светлой теме — светлая) заливка, лёгкий блик сверху и рамка с переходом от синего к фиолетовому.
+struct CardBackground: View {
+    var body: some View {
+        ZStack {
+            Color.cardBackground
+            LinearGradient(
+                colors: [.white.opacity(0.08), .white.opacity(0.02), .black.opacity(0.12)],
+                startPoint: .topLeading, endPoint: .bottomTrailing
+            )
+            ContainerRelativeShape()
+                .strokeBorder(
+                    LinearGradient(
+                        colors: [Color(red: 0.24, green: 0.55, blue: 1), .primary.opacity(0.12),
+                                 .primary.opacity(0.06), Color(red: 0.48, green: 0.36, blue: 1)],
+                        startPoint: .topLeading, endPoint: .bottomTrailing
+                    ),
+                    lineWidth: 1
+                )
+        }
+    }
+}
+
 // MARK: - Widget
 
 struct EWordWidget: Widget {
@@ -458,12 +541,7 @@ struct EWordWidget: Widget {
         StaticConfiguration(kind: kind, provider: Provider()) { entry in
             WordWidgetEntryView(entry: entry)
                 .widgetURL(WordStore.openAppURL)
-                .containerBackground(for: .widget) {
-                    LinearGradient(
-                        colors: [Color.accentColor.opacity(0.18), Color.accentColor.opacity(0.04)],
-                        startPoint: .topLeading, endPoint: .bottomTrailing
-                    )
-                }
+                .containerBackground(for: .widget) { CardBackground() }
         }
         .configurationDisplayName("eWord")
         .description("Новое английское слово каждые 10 минут: уровни A1–C2, озвучка, примеры, идиомы и прогресс.")

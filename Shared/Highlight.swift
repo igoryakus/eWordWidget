@@ -6,7 +6,8 @@
 import SwiftUI
 
 nonisolated enum Highlight {
-    static func sentence(_ sentence: String, word: String) -> AttributedString {
+    /// color: nil — только жирный, без цвета (нужно, когда строку перекрашивают целиком, см. виджет).
+    static func sentence(_ sentence: String, word: String, color: Color? = .accentColor) -> AttributedString {
         var result = AttributedString(sentence)
         let lower = word.lowercased()
         let stem = String(lower.prefix(max(3, lower.count - 1)))
@@ -28,7 +29,9 @@ nonisolated enum Highlight {
             }
             if atWordStart {
                 result[range.lowerBound..<end].inlinePresentationIntent = .stronglyEmphasized
-                result[range.lowerBound..<end].foregroundColor = Color.accentColor
+                if let color {
+                    result[range.lowerBound..<end].foregroundColor = color
+                }
             }
             searchStart = end
         }
