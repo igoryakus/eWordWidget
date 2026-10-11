@@ -32,6 +32,8 @@ struct ContentView: View {
             }
         }
         .id(refresh)
+        // Та же тема, что у виджета: «как в системе» — nil.
+        .preferredColorScheme(theme.colorScheme)
         #if os(macOS)
         .frame(minWidth: 460, minHeight: 560)
         #endif
@@ -205,7 +207,7 @@ struct ContentView: View {
                 reloadWidgets()
             }
 
-            Picker("Тема виджета", selection: $theme) {
+            Picker("Тема окна и виджета", selection: $theme) {
                 ForEach(WidgetTheme.allCases) { Text($0.title).tag($0) }
             }
             .pickerStyle(.segmented)
@@ -277,4 +279,14 @@ struct ContentView: View {
 
 #Preview {
     ContentView()
+}
+
+extension WidgetTheme {
+    var colorScheme: ColorScheme? {
+        switch self {
+        case .auto: nil
+        case .light: .light
+        case .dark: .dark
+        }
+    }
 }
