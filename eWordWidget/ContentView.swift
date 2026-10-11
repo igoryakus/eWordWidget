@@ -34,6 +34,8 @@ struct ContentView: View {
         .id(refresh)
         // Та же тема, что у виджета: «как в системе» — nil.
         .preferredColorScheme(theme.colorScheme)
+        // Голубой как в виджете вместо системного синего.
+        .tint(.word)
         #if os(macOS)
         .frame(minWidth: 460, minHeight: 560)
         #endif
@@ -142,7 +144,7 @@ struct ContentView: View {
                         Text(option.title)
                     }
                     .buttonStyle(.bordered)
-                    .tint(accent == option ? .accentColor : .secondary)
+                    .tint(accent == option ? Color.word : .secondary)
                     .fontWeight(accent == option ? .semibold : .regular)
                     .disabled(isSpeaking)
                 }
@@ -160,7 +162,7 @@ struct ContentView: View {
         VStack(alignment: .leading, spacing: 8) {
             Text("Примеры").font(.headline)
             ForEach(word.examples, id: \.self) { example in
-                let english = Text(Highlight.sentence(example.text, word: word.text))
+                let english = Text(Highlight.sentence(example.text, word: word.text, color: .word))
                 let russian = Text(example.translation)
                 VStack(alignment: .leading, spacing: 2) {
                     (direction == .en ? english : russian)
