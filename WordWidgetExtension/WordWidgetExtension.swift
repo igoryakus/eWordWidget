@@ -233,7 +233,8 @@ struct ActionBar: View {
     }
 
     private var percent: some View {
-        Text(entry.progress, format: .percent.precision(.fractionLength(0)))
+        // «12%» без пробела, как в макете (русская локаль ставит «12 %»).
+        Text("\(Int((entry.progress * 100).rounded()))%")
             .lineLimit(1)
             .fixedSize()
     }
@@ -290,7 +291,7 @@ struct SectionTitle: View {
 
 /// Строка «задание — ответ»: ответ в той же строке через тире, размыт, пока не открыт; нажатие открывает/скрывает.
 /// Размыть часть Text нельзя, поэтому, пока ответ скрыт, рисуем две копии строки с одинаковой разметкой:
-/// снизу — только ответ (размытый), сверху — только задание; остальное в каждой копии прозрачное.
+/// снизу — тире и ответ (размытые), сверху — только задание; остальное в каждой копии прозрачное.
 struct PromptAnswerRow: View {
     let entry: WordEntry
     /// Задание; аргумент — видим ли текст (false — прозрачный, только для разметки).
@@ -318,7 +319,7 @@ struct PromptAnswerRow: View {
     }
 
     private func line(prompt showsPrompt: Bool, answer showsAnswer: Bool) -> some View {
-        let dash = Text(" — ").font(answerFont).foregroundStyle(showsPrompt ? Color.secondary : Color.clear)
+        let dash = Text(" — ").font(answerFont).foregroundStyle(showsAnswer ? Color.secondary : Color.clear)
         let answer = answer(showsAnswer).font(answerFont)
         return Text("\(prompt(showsPrompt))\(dash)\(answer)")
             .font(font)
