@@ -12,6 +12,7 @@ struct ContentView: View {
     @State private var direction: Direction = WordStore.direction
     @State private var refresh = 0
     @State private var isSpeaking = false
+    @State private var confirmReset = false
 
     var body: some View {
         TimelineView(.periodic(from: .now, by: 15)) { context in
@@ -219,11 +220,23 @@ struct ContentView: View {
 
             if count > 0 {
                 Button("Сбросить прогресс уровня", role: .destructive) {
-                    WordStore.resetProgress(for: level)
-                    reloadWidgets()
+                    confirmReset = true
                 }
                 .buttonStyle(.borderless)
                 .font(.caption)
+                .confirmationDialog(
+                    "Сбросить прогресс уровня \(level.title)?",
+                    isPresented: $confirmReset,
+                    titleVisibility: .visible
+                ) {
+                    Button("Сбросить", role: .destructive) {
+                        WordStore.resetProgress(for: level)
+                        reloadWidgets()
+                    }
+                    Button("Отмена", role: .cancel) {}
+                } message: {
+                    Text("Запомненные слова (\(count)) снова начнут показываться.")
+                }
             }
         }
     }
