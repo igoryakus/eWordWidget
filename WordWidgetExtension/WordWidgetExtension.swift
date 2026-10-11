@@ -225,7 +225,7 @@ struct ActionBar: View {
             .help("Запомнил")
 
             Button(intent: NextWordIntent()) {
-                Image(systemName: "arrow.forward")
+                Image(systemName: "arrow.forward").frame(width: 14)
             }
             .help("Следующее слово")
         }
@@ -271,7 +271,7 @@ struct SpeakCluster: View {
                     .minimumScaleFactor(0.8)
             }
             Button(intent: SpeakWordIntent(word: entry.word.text)) {
-                Image(systemName: "speaker.wave.2.fill")
+                Image(systemName: "speaker.wave.2.fill").frame(width: 14)
             }
             .help("Произнести")
             .buttonStyle(ChipButtonStyle(compact: compact))
@@ -421,34 +421,6 @@ struct ExamplesAndIdioms: View {
     }
 }
 
-/// Подсказка, пока ответ скрыт (место под неё остаётся, чтобы ничего не прыгало).
-struct HintText: View {
-    let entry: WordEntry
-
-    var body: some View {
-        Text(entry.direction == .en ? "Нажмите на размытый перевод" : "Нажмите на размытое слово")
-            .font(.caption2)
-            .foregroundStyle(.secondary)
-            .lineLimit(1)
-            .minimumScaleFactor(0.7)
-            .opacity(entry.revealed ? 0 : 1)
-    }
-}
-
-/// Нижняя строка: подсказка (пока ответ скрыт) и 🔊 у правого края.
-struct BottomRow: View {
-    let entry: WordEntry
-    var compact = false
-
-    var body: some View {
-        HStack(spacing: 6) {
-            HintText(entry: entry)
-            Spacer(minLength: 0)
-            SpeakCluster(entry: entry, compact: compact)
-        }
-    }
-}
-
 struct SmallWordView: View {
     let entry: WordEntry
     var body: some View {
@@ -460,7 +432,6 @@ struct SmallWordView: View {
             }
             WordDetails(entry: entry, ipaSize: 13, answerFont: .footnote, showsPartOfSpeech: false)
             Spacer(minLength: 0)
-            HintText(entry: entry)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
     }
@@ -469,7 +440,7 @@ struct SmallWordView: View {
 struct MediumWordView: View {
     let entry: WordEntry
     var body: some View {
-        // Высоты мало: 🔊 в строке транскрипции, без подсказки внизу — так влезает хотя бы один пример.
+        // 🔊 в строке транскрипции у правого края, под «следующим словом».
         VStack(alignment: .leading, spacing: 5) {
             TitleRow(entry: entry, titleSize: 22)
             HStack(alignment: .center, spacing: 6) {
@@ -489,10 +460,14 @@ struct LargeWordView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
             TitleRow(entry: entry, titleSize: 30)
-            WordDetails(entry: entry, ipaSize: 16, answerFont: .body)
+            // 🔊 у правого края, под «следующим словом».
+            HStack(alignment: .top) {
+                WordDetails(entry: entry, ipaSize: 16, answerFont: .body)
+                Spacer(minLength: 4)
+                SpeakCluster(entry: entry)
+            }
             ExamplesAndIdioms(entry: entry, exampleFont: .subheadline, translationFont: .subheadline, spacing: 5)
                 .padding(.top, 6)
-            BottomRow(entry: entry)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
     }
