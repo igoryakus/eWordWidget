@@ -82,6 +82,19 @@ nonisolated enum Direction: String, CaseIterable, Identifiable, Sendable {
     var toggled: Direction { self == .en ? .ru : .en }
 }
 
+/// Тема карточки виджета: как в системе, всегда светлая или всегда тёмная.
+nonisolated enum WidgetTheme: String, CaseIterable, Identifiable, Sendable {
+    case auto, light, dark
+    var id: String { rawValue }
+    var title: String {
+        switch self {
+        case .auto: "Как в системе"
+        case .light: "Светлая"
+        case .dark: "Тёмная"
+        }
+    }
+}
+
 /// Хранилище состояния, общее для приложения и виджета (App Group).
 nonisolated enum WordStore {
     static let appGroup = "group.com.yakus.ewordwidget"
@@ -102,6 +115,7 @@ nonisolated enum WordStore {
         var direction = Direction.en.rawValue
         /// Слово, у которого открыт (не размыт) ответ. Для следующего слова ответ снова скрыт.
         var revealed: String?
+        var theme = WidgetTheme.dark.rawValue
 
         init(offset: Int = 0, level: String = Level.a1.rawValue, learned: [String] = []) {
             self.offset = offset
@@ -117,6 +131,7 @@ nonisolated enum WordStore {
             learned = try c.decodeIfPresent([String].self, forKey: .learned) ?? []
             direction = try c.decodeIfPresent(String.self, forKey: .direction) ?? Direction.en.rawValue
             revealed = try c.decodeIfPresent(String.self, forKey: .revealed)
+            theme = try c.decodeIfPresent(String.self, forKey: .theme) ?? WidgetTheme.dark.rawValue
         }
     }
 
@@ -169,6 +184,11 @@ nonisolated enum WordStore {
     static var direction: Direction {
         get { Direction(rawValue: loadState().direction) ?? .en }
         set { updateState { $0.direction = newValue.rawValue; $0.revealed = nil } }
+    }
+
+    static var theme: WidgetTheme {
+        get { WidgetTheme(rawValue: loadState().theme) ?? .dark }
+        set { updateState { $0.theme = newValue.rawValue } }
     }
 
     /// Открыт ли ответ (перевод) для слова.

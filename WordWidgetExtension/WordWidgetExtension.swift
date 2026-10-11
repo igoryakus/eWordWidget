@@ -19,6 +19,8 @@ struct WordEntry: TimelineEntry {
     var direction: Direction = WordStore.direction
     /// Ответ (перевод) открыт нажатием.
     var revealed = false
+    /// Тема карточки (выбирается в окне приложения).
+    var theme: WidgetTheme = WordStore.theme
 }
 
 struct Provider: TimelineProvider {
@@ -41,11 +43,12 @@ struct Provider: TimelineProvider {
         let lastAudio = AudioOrigin.last
         let direction = WordStore.direction
         let revealedWord = WordStore.revealedWord
+        let theme = WordStore.theme
         let entries = (0..<12).map { i -> WordEntry in
             let date = i == 0 ? now : start.addingTimeInterval(Double(i) * WordStore.interval)
             let word = rotation.word(at: date)
             return WordEntry(date: date, word: word, level: level, progress: progress, lastAudio: lastAudio,
-                             direction: direction, revealed: word.text == revealedWord)
+                             direction: direction, revealed: word.text == revealedWord, theme: theme)
         }
         completion(Timeline(entries: entries, policy: .atEnd))
 
@@ -488,11 +491,13 @@ struct WordWidgetEntryView: View {
 
 /// Фон карточки как в макете на сайте: тёмная (в светлой теме — светлая) заливка, лёгкий блик сверху и рамка с переходом от синего к фиолетовому.
 struct CardBackground: View {
+    @Environment(\.colorScheme) private var scheme
+
     var body: some View {
         ZStack {
             Color.cardBackground
             LinearGradient(
-                colors: [.white.opacity(0.08), .white.opacity(0.02), .black.opacity(0.12)],
+                colors: [.white.opacity(0.08), .white.opacity(0.02), .black.opacity(scheme == .dark ? 0.12 : 0.03)],
                 startPoint: .topLeading, endPoint: .bottomTrailing
             )
             ContainerRelativeShape()
@@ -508,6 +513,19 @@ struct CardBackground: View {
     }
 }
 
+/// Тема из настроек: светлая или тёмная принудительно, «как в системе» — без изменений.
+struct ThemeModifier: ViewModifier {
+    let theme: WidgetTheme
+
+    func body(content: Content) -> some View {
+        switch theme {
+        case .auto: content
+        case .light: content.environment(\.colorScheme, .light)
+        case .dark: content.environment(\.colorScheme, .dark)
+        }
+    }
+}
+
 // MARK: - Widget
 
 struct EWordWidget: Widget {
@@ -515,11 +533,10 @@ struct EWordWidget: Widget {
 
     var body: some WidgetConfiguration {
         StaticConfiguration(kind: kind, provider: Provider()) { entry in
-            // Карточка всегда тёмная, как в макете, и в светлой теме системы тоже.
             WordWidgetEntryView(entry: entry)
-                .environment(\.colorScheme, .dark)
+                .modifier(ThemeModifier(theme: entry.theme))
                 .widgetURL(WordStore.openAppURL)
-                .containerBackground(for: .widget) { CardBackground().environment(\.colorScheme, .dark) }
+                .containerBackground(for: .widget) { CardBackground().modifier(ThemeModifier(theme: entry.theme)) }
         }
         .configurationDisplayName("eWord")
         .description("Новое английское слово каждые 10 минут: уровни A1–C2, озвучка, примеры, идиомы и прогресс.")

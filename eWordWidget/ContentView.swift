@@ -10,6 +10,7 @@ struct ContentView: View {
     @AppStorage("accent", store: WordStore.defaults) private var accent: Accent = .uk
     @State private var level: Level = WordStore.level
     @State private var direction: Direction = WordStore.direction
+    @State private var theme: WidgetTheme = WordStore.theme
     @State private var refresh = 0
     @State private var isSpeaking = false
     @State private var confirmReset = false
@@ -201,6 +202,15 @@ struct ContentView: View {
             .pickerStyle(.segmented)
             .onChange(of: direction) {
                 WordStore.direction = direction
+                reloadWidgets()
+            }
+
+            Picker("Тема виджета", selection: $theme) {
+                ForEach(WidgetTheme.allCases) { Text($0.title).tag($0) }
+            }
+            .pickerStyle(.segmented)
+            .onChange(of: theme) {
+                WordStore.theme = theme
                 reloadWidgets()
             }
 
