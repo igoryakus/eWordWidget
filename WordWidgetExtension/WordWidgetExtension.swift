@@ -515,9 +515,11 @@ struct EWordWidget: Widget {
 
     var body: some WidgetConfiguration {
         StaticConfiguration(kind: kind, provider: Provider()) { entry in
+            // Карточка всегда тёмная, как в макете, и в светлой теме системы тоже.
             WordWidgetEntryView(entry: entry)
+                .environment(\.colorScheme, .dark)
                 .widgetURL(WordStore.openAppURL)
-                .containerBackground(for: .widget) { CardBackground() }
+                .containerBackground(for: .widget) { CardBackground().environment(\.colorScheme, .dark) }
         }
         .configurationDisplayName("eWord")
         .description("Новое английское слово каждые 10 минут: уровни A1–C2, озвучка, примеры, идиомы и прогресс.")
