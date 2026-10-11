@@ -209,15 +209,6 @@ struct ContentView: View {
                 reloadWidgets()
             }
 
-            Picker("Тема окна и виджета", selection: $theme) {
-                ForEach(WidgetTheme.allCases) { Text($0.title).tag($0) }
-            }
-            .pickerStyle(.segmented)
-            .onChange(of: theme) {
-                WordStore.theme = theme
-                reloadWidgets()
-            }
-
             Picker("Уровень", selection: $level) {
                 ForEach(Level.allCases) { Text($0.title).tag($0) }
             }
@@ -251,6 +242,16 @@ struct ContentView: View {
                 } message: {
                     Text("Запомненные слова (\(count)) снова начнут показываться.")
                 }
+            }
+
+            Picker("Тема окна и виджета", selection: $theme) {
+                ForEach(WidgetTheme.allCases) { Text($0.title).tag($0) }
+            }
+            .pickerStyle(.segmented)
+            .padding(.top, 6)
+            .onChange(of: theme) {
+                WordStore.theme = theme
+                reloadWidgets()
             }
         }
     }
