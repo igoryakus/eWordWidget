@@ -1,0 +1,69 @@
+# Сборка macOS-версии и релиз на GitHub при каждом пуше в main.
+# Сертификата Developer ID нет, поэтому приложение подписывается ad-hoc:
+# на чужом Mac при первом запуске нужно разрешить его в «Конфиденциальность и безопасность».
+name: Release macOS
+
+on:
+  push:
+    branches: [main, claude/release-action]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+jobs:
+  release:
+    runs-on: macos-26
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Выбор Xcode
+        run: |
+          ls -d /Applications/Xcode*.app
+          XCODE=$(ls -d /Applications/Xcode_*.app | sort -V | tail -1)
+          sudo xcode-select -s "$XCODE"
+          xcodebuild -version
+
+      - name: Сборка
+        run: |
+          xcodebuild -project eWordWidget.xcodeproj -scheme eWordWidget \
+            -configuration Release -destination 'generic/platform=macOS' \
+            -derivedDataPath build CODE_SIGNING_ALLOWED=NO build | tail -20
+
+      - name: Подпись ad-hoc
+        run: |
+          APP=build/Build/Products/Release/eWordWidget.app
+          codesign --force --options runtime --timestamp=none --sign - \
+            --entitlements ci/widget.entitlements \
+            "$APP/Contents/PlugIns/WordWidgetExtensionExtension.appex"
+          codesign --force --options runtime --timestamp=none --sign - \
+            --entitlements ci/app.entitlements "$APP"
+          codesign --verify --deep --strict --verbose=2 "$APP"
+
+      - name: Упаковка
+        id: pack
+        run: |
+          APP=build/Build/Products/Release/eWordWidget.app
+          VERSION=$(/usr/libexec/PlistBuddy -c 'Print CFBundleShortVersionString' "$APP/Contents/Info.plist")
+          TAG="v$VERSION.$GITHUB_RUN_NUMBER"
+          mkdir -p dist dmg
+          ditto -c -k --keepParent "$APP" dist/eWordWidget.zip
+          cp -R "$APP" dmg/
+          ln -s /Applications dmg/Applications
+          hdiutil create -volname eWordWidget -srcfolder dmg -format UDZO dist/eWordWidget.dmg
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+
+      - name: Релиз
+        if: github.ref == 'refs/heads/main'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ steps.pack.outputs.tag }}
+        run: |
+          git log -1 --format=%B > notes.txt
+          printf '\nТребуется macOS Tahoe 26.5 или новее. Приложение не нотаризовано: при первом запуске откройте «Системные настройки → Конфиденциальность и безопасность» и нажмите «Всё равно открыть». Потом добавьте виджет через «Изменить виджеты» на рабочем столе.\n' >> notes.txt
+          gh release create "$TAG" dist/eWordWidget.dmg dist/eWordWidget.zip \
+            --target "$GITHUB_SHA" --title "eWordWidget $TAG" --notes-file notes.txt --latest
